@@ -26,12 +26,14 @@ class _GroceryListState extends State<GroceryList> {
 
   Future<List<GroceryItem>> _loadItems() async {
     final url = Uri.https(
-        'fir-course-21e9b-default-rtdb.firebaseio.com', 'shopping-list.json');
+      'fir-course-21e9b-default-rtdb.firebaseio.com',
+      'shopping-list.json',
+    );
 
     final response = await http.get(url);
 
     if (response.statusCode >= 400) {
-      throw Exception('Failed to fetch grocery items. Please try again later.');
+      throw Exception('Failed to fetch grocery items.');
     }
 
     if (response.body == 'null') {
@@ -40,11 +42,12 @@ class _GroceryListState extends State<GroceryList> {
 
     final Map<String, dynamic> listData = json.decode(response.body);
     final List<GroceryItem> loadedItems = [];
+
     for (final item in listData.entries) {
       final category = categories.entries
-          .firstWhere(
-              (catItem) => catItem.value.title == item.value['category'])
+          .firstWhere((cat) => cat.value.title == item.value['category'])
           .value;
+
       loadedItems.add(
         GroceryItem(
           id: item.key,
@@ -54,8 +57,11 @@ class _GroceryListState extends State<GroceryList> {
         ),
       );
     }
+
+    _groceryItems = loadedItems; // ✅ single source of truth
     return loadedItems;
   }
+
 
   void _addItem() async {
     final newItem = await Navigator.of(context).push<GroceryItem>(
@@ -124,25 +130,34 @@ class _GroceryListState extends State<GroceryList> {
           }
 
           return ListView.builder(
-            itemCount: snapshot.data!.length,
-            itemBuilder: (ctx, index) => Dismissible(
-              onDismissed: (direction) {
-                _removeItem(snapshot.data![index]);
-              },
-              key: ValueKey(snapshot.data![index].id),
-              child: ListTile(
-                title: Text(snapshot.data![index].name),
-                leading: Container(
-                  width: 24,
-                  height: 24,
-                  color: snapshot.data![index].category.color,
+            itemCount: _groceryItems.length,
+            itemBuilder: (ctx, index) {
+              final item = _groceryItems[index];
+
+              return Dismissible(
+                key: ValueKey(item.id),
+                onDismissed: (direction) {
+                  _removeItem(item);
+                },
+                background: Container(
+                  color: Theme.of(context).colorScheme.error,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  child: const Icon(Icons.delete, color: Colors.white),
                 ),
-                trailing: Text(
-                  snapshot.data![index].quantity.toString(),
+                child: ListTile(
+                  title: Text(item.name),
+                  leading: Container(
+                    width: 24,
+                    height: 24,
+                    color: item.category.color,
+                  ),
+                  trailing: Text(item.quantity.toString()),
                 ),
-              ),
-            ),
+              );
+            },
           );
+
         },
       ),
     );
